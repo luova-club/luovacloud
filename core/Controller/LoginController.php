@@ -315,7 +315,7 @@ class LoginController extends Controller {
 				$user,
 				$user,
 				$redirect_url,
-				null
+				$this->l10n->t('Please try again')
 			);
 		}
 
