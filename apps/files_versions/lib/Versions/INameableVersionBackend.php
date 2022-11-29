@@ -1,7 +1,9 @@
+<?php
+
+declare(strict_types=1);
+
 /**
- * @copyright 2022 Carl Schwan <carl@carlschwan.eu>
- *
- * @author Carl Schwan <carl@carlschwan.eu>
+ * @copyright Copyright (c) 2022 Louis Chmn <louis@chmn.me>
  *
  * @license GNU AGPL version 3 or any later version
  *
@@ -19,3 +21,16 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
  */
+namespace OCA\Files_Versions\Versions;
+
+/**
+ * @since 26.0.0
+ */
+interface INameableVersionBackend {
+	/**
+	 * Set the label for a version.
+	 *
+	 * @since 26.0.0
+	 */
+	public function setVersionLabel(IVersion $version, string $label): void;
+}
