@@ -40,8 +40,11 @@ namespace OC\App;
 
 use OC\AppConfig;
 use OCP\App\AppPathNotFoundException;
+use OCP\App\Events\AppDisableEvent;
+use OCP\App\Events\AppEnableEvent;
 use OCP\App\IAppManager;
 use OCP\App\ManagerEvent;
+use OCP\EventDispatcher\IEventDispatcher;
 use OCP\ICacheFactory;
 use OCP\IConfig;
 use OCP\IGroup;
@@ -81,7 +84,9 @@ class AppManager implements IAppManager {
 	private $memCacheFactory;
 
 	/** @var EventDispatcherInterface */
-	private $dispatcher;
+	private $legacyDispatcher;
+
+	private IEventDispatcher $dispatcher;
 
 	/** @var LoggerInterface */
 	private $logger;
@@ -109,13 +114,15 @@ class AppManager implements IAppManager {
 								AppConfig $appConfig,
 								IGroupManager $groupManager,
 								ICacheFactory $memCacheFactory,
-								EventDispatcherInterface $dispatcher,
+								EventDispatcherInterface $legacyDispatcher,
+								IEventDispatcher $dispatcher,
 								LoggerInterface $logger) {
 		$this->userSession = $userSession;
 		$this->config = $config;
 		$this->appConfig = $appConfig;
 		$this->groupManager = $groupManager;
 		$this->memCacheFactory = $memCacheFactory;
+		$this->legacyDispatcher = $legacyDispatcher;
 		$this->dispatcher = $dispatcher;
 		$this->logger = $logger;
 	}
@@ -321,7 +328,8 @@ class AppManager implements IAppManager {
 
 		$this->installedAppsCache[$appId] = 'yes';
 		$this->appConfig->setValue($appId, 'enabled', 'yes');
-		$this->dispatcher->dispatch(ManagerEvent::EVENT_APP_ENABLE, new ManagerEvent(
+		$this->dispatcher->dispatchTyped(new AppEnableEvent($appId));
+		$this->legacyDispatcher->dispatch(ManagerEvent::EVENT_APP_ENABLE, new ManagerEvent(
 			ManagerEvent::EVENT_APP_ENABLE, $appId
 		));
 		$this->clearAppsCache();
@@ -373,7 +381,8 @@ class AppManager implements IAppManager {
 
 		$this->installedAppsCache[$appId] = json_encode($groupIds);
 		$this->appConfig->setValue($appId, 'enabled', json_encode($groupIds));
-		$this->dispatcher->dispatch(ManagerEvent::EVENT_APP_ENABLE_FOR_GROUPS, new ManagerEvent(
+		$this->dispatcher->dispatchTyped(new AppEnableEvent($appId, $groupIds));
+		$this->legacyDispatcher->dispatch(ManagerEvent::EVENT_APP_ENABLE_FOR_GROUPS, new ManagerEvent(
 			ManagerEvent::EVENT_APP_ENABLE_FOR_GROUPS, $appId, $groups
 		));
 		$this->clearAppsCache();
@@ -408,7 +417,8 @@ class AppManager implements IAppManager {
 			\OC_App::executeRepairSteps($appId, $appData['repair-steps']['uninstall']);
 		}
 
-		$this->dispatcher->dispatch(ManagerEvent::EVENT_APP_DISABLE, new ManagerEvent(
+		$this->dispatcher->dispatchTyped(new AppDisableEvent($appId));
+		$this->legacyDispatcher->dispatch(ManagerEvent::EVENT_APP_DISABLE, new ManagerEvent(
 			ManagerEvent::EVENT_APP_DISABLE, $appId
 		));
 		$this->clearAppsCache();
