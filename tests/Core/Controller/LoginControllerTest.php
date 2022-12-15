@@ -75,9 +75,6 @@ class LoginControllerTest extends TestCase {
 	/** @var Throttler|MockObject */
 	private $throttler;
 
-	/** @var LoginChain|MockObject */
-	private $chain;
-
 	/** @var IInitialStateService|MockObject */
 	private $initialStateService;
 
@@ -101,7 +98,6 @@ class LoginControllerTest extends TestCase {
 		$this->twoFactorManager = $this->createMock(Manager::class);
 		$this->defaults = $this->createMock(Defaults::class);
 		$this->throttler = $this->createMock(Throttler::class);
-		$this->chain = $this->createMock(LoginChain::class);
 		$this->initialStateService = $this->createMock(IInitialStateService::class);
 		$this->webAuthnManager = $this->createMock(\OC\Authentication\WebAuthn\Manager::class);
 		$this->notificationManager = $this->createMock(IManager::class);
@@ -131,7 +127,6 @@ class LoginControllerTest extends TestCase {
 			$this->urlGenerator,
 			$this->defaults,
 			$this->throttler,
-			$this->chain,
 			$this->initialStateService,
 			$this->webAuthnManager,
 			$this->notificationManager,
@@ -435,11 +430,11 @@ class LoginControllerTest extends TestCase {
 		$this->assertEquals($expectedResponse, $this->loginController->showLoginForm('0', ''));
 	}
 
-	public function testLoginWithInvalidCredentials() {
+	public function testLoginWithInvalidCredentials(): void {
 		$user = 'MyUserName';
 		$password = 'secret';
 		$loginPageUrl = '/login?redirect_url=/apps/files';
-
+		$loginChain = $this->createMock(LoginChain::class);
 		$this->request
 			->expects($this->once())
 			->method('passesCSRFCheck')
@@ -451,7 +446,7 @@ class LoginControllerTest extends TestCase {
 			'/apps/files'
 		);
 		$loginResult = LoginResult::failure($loginData, LoginController::LOGIN_MSG_INVALIDPASSWORD);
-		$this->chain->expects($this->once())
+		$loginChain->expects($this->once())
 			->method('process')
 			->with($this->equalTo($loginData))
 			->willReturn($loginResult);
@@ -466,7 +461,7 @@ class LoginControllerTest extends TestCase {
 		$expected = new RedirectResponse($loginPageUrl);
 		$expected->throttle(['user' => 'MyUserName']);
 
-		$response = $this->loginController->tryLogin($user, $password, '/apps/files');
+		$response = $this->loginController->tryLogin($loginChain, $user, $password, '/apps/files');
 
 		$this->assertEquals($expected, $response);
 	}
@@ -474,7 +469,7 @@ class LoginControllerTest extends TestCase {
 	public function testLoginWithValidCredentials() {
 		$user = 'MyUserName';
 		$password = 'secret';
-
+		$loginChain = $this->createMock(LoginChain::class);
 		$this->request
 			->expects($this->once())
 			->method('passesCSRFCheck')
@@ -485,7 +480,7 @@ class LoginControllerTest extends TestCase {
 			$password
 		);
 		$loginResult = LoginResult::success($loginData);
-		$this->chain->expects($this->once())
+		$loginChain->expects($this->once())
 			->method('process')
 			->with($this->equalTo($loginData))
 			->willReturn($loginResult);
@@ -495,7 +490,7 @@ class LoginControllerTest extends TestCase {
 			->willReturn('/default/foo');
 
 		$expected = new RedirectResponse('/default/foo');
-		$this->assertEquals($expected, $this->loginController->tryLogin($user, $password));
+		$this->assertEquals($expected, $this->loginController->tryLogin($loginChain, $user, $password));
 	}
 
 	public function testLoginWithoutPassedCsrfCheckAndNotLoggedIn() {
@@ -506,7 +501,7 @@ class LoginControllerTest extends TestCase {
 			->willReturn('jane');
 		$password = 'secret';
 		$originalUrl = 'another%20url';
-
+		$loginChain = $this->createMock(LoginChain::class);
 		$this->request
 			->expects($this->once())
 			->method('passesCSRFCheck')
@@ -525,7 +520,7 @@ class LoginControllerTest extends TestCase {
 			->willReturn('/default/foo');
 
 		$expected = new RedirectResponse('/default/foo');
-		$this->assertEquals($expected, $this->loginController->tryLogin('Jane', $password, $originalUrl));
+		$this->assertEquals($expected, $this->loginController->tryLogin($loginChain,'Jane', $password, $originalUrl));
 	}
 
 	public function testLoginWithoutPassedCsrfCheckAndLoggedIn() {
@@ -537,7 +532,7 @@ class LoginControllerTest extends TestCase {
 		$password = 'secret';
 		$originalUrl = 'another url';
 		$redirectUrl = 'http://localhost/another url';
-
+		$loginChain = $this->createMock(LoginChain::class);
 		$this->request
 			->expects($this->once())
 			->method('passesCSRFCheck')
@@ -560,14 +555,14 @@ class LoginControllerTest extends TestCase {
 			->willReturn(1234);
 
 		$expected = new RedirectResponse($redirectUrl);
-		$this->assertEquals($expected, $this->loginController->tryLogin('Jane', $password, $originalUrl));
+		$this->assertEquals($expected, $this->loginController->tryLogin($loginChain, 'Jane', $password, $originalUrl));
 	}
 
 	public function testLoginWithValidCredentialsAndRedirectUrl() {
 		$user = 'MyUserName';
 		$password = 'secret';
 		$redirectUrl = 'https://next.cloud/apps/mail';
-
+		$loginChain = $this->createMock(LoginChain::class);
 		$this->request
 			->expects($this->once())
 			->method('passesCSRFCheck')
@@ -579,7 +574,7 @@ class LoginControllerTest extends TestCase {
 			'/apps/mail'
 		);
 		$loginResult = LoginResult::success($loginData);
-		$this->chain->expects($this->once())
+		$loginChain->expects($this->once())
 			->method('process')
 			->with($this->equalTo($loginData))
 			->willReturn($loginResult);
@@ -592,12 +587,13 @@ class LoginControllerTest extends TestCase {
 			->willReturn($redirectUrl);
 		$expected = new RedirectResponse($redirectUrl);
 
-		$response = $this->loginController->tryLogin($user, $password, '/apps/mail');
+		$response = $this->loginController->tryLogin($loginChain, $user, $password, '/apps/mail');
 
 		$this->assertEquals($expected, $response);
 	}
 
 	public function testToNotLeakLoginName() {
+		$loginChain = $this->createMock(LoginChain::class);
 		$this->request
 			->expects($this->once())
 			->method('passesCSRFCheck')
@@ -610,7 +606,7 @@ class LoginControllerTest extends TestCase {
 			'/apps/files'
 		);
 		$loginResult = LoginResult::failure($loginData, LoginController::LOGIN_MSG_INVALIDPASSWORD);
-		$this->chain->expects($this->once())
+		$loginChain->expects($this->once())
 			->method('process')
 			->with($this->equalTo($loginData))
 			->willReturnCallback(function (LoginData $data) use ($loginResult) {
@@ -629,6 +625,7 @@ class LoginControllerTest extends TestCase {
 		$expected->throttle(['user' => 'john']);
 
 		$response = $this->loginController->tryLogin(
+			$loginChain,
 			'john@doe.com',
 			'just wrong',
 			'/apps/files'

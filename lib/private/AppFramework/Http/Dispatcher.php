@@ -39,9 +39,11 @@ use OC\DB\ConnectionAdapter;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\Response;
+use OCP\AppFramework\IAppContainer;
 use OCP\Diagnostics\IEventLogger;
 use OCP\IConfig;
 use OCP\IRequest;
+use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -73,6 +75,8 @@ class Dispatcher {
 	/** @var IEventLogger */
 	private $eventLogger;
 
+	private ContainerInterface $appContainer;
+
 	/**
 	 * @param Http $protocol the http protocol with contains all status headers
 	 * @param MiddlewareDispatcher $middlewareDispatcher the dispatcher which
@@ -92,7 +96,8 @@ class Dispatcher {
 								IConfig $config,
 								ConnectionAdapter $connection,
 								LoggerInterface $logger,
-								IEventLogger $eventLogger) {
+								IEventLogger $eventLogger,
+								ContainerInterface $appContainer) {
 		$this->protocol = $protocol;
 		$this->middlewareDispatcher = $middlewareDispatcher;
 		$this->reflector = $reflector;
@@ -101,6 +106,7 @@ class Dispatcher {
 		$this->connection = $connection;
 		$this->logger = $logger;
 		$this->eventLogger = $eventLogger;
+		$this->appContainer = $appContainer;
 	}
 
 
@@ -216,6 +222,8 @@ class Dispatcher {
 				$value = false;
 			} elseif ($value !== null && \in_array($type, $types, true)) {
 				settype($value, $type);
+			} elseif ($value === null && $this->appContainer->has($type)) {
+				$value = $this->appContainer->get($type);
 			}
 
 			$arguments[] = $value;
