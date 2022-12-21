@@ -1,7 +1,7 @@
 /**
- * @copyright Copyright (c) 2022 John Molakvoæ <skjnldsv@protonmail.com>
+ * @copyright Copyright (c) 2022 Louis Chmn <louis@chmn.me>
  *
- * @author John Molakvoæ <skjnldsv@protonmail.com>
+ * @author Louis Chmn <louis@chmn.me>
  *
  * @license AGPL-3.0-or-later
  *
@@ -19,4 +19,23 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import './commands'
+
+import { assertVersionContent, openVersionsPanel, uploadThreeVersions } from './filesVersionsUtils'
+
+describe('Versions download', () => {
+	before(() => {
+		cy.createRandomUser()
+			.then((user) => {
+				uploadThreeVersions(user)
+				cy.login(user)
+				cy.visit('/apps/files')
+				openVersionsPanel('test.txt')
+			})
+	})
+
+	it('Download versions and assert there content', () => {
+		assertVersionContent(0, 'v3')
+		assertVersionContent(1, 'v2')
+		assertVersionContent(2, 'v1')
+	})
+})

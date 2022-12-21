@@ -116,6 +116,7 @@ export const configureNextcloud = async function() {
 	await runExec(container, ['php', 'occ', 'config:system:set', 'default_locale', '--value', 'en_US'], true)
 	await runExec(container, ['php', 'occ', 'config:system:set', 'force_locale', '--value', 'en_US'], true)
 	await runExec(container, ['php', 'occ', 'config:system:set', 'enforce_theme', '--value', 'light'], true)
+	await runExec(container, ['php', 'occ', 'config:system:set', 'versions_retention_obligation', '--value', '0, 0'], true)
 
 	// Enable the app and give status
 	await runExec(container, ['php', 'occ', 'app:enable', '--force', 'viewer'], true)
