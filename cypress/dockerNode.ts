@@ -83,6 +83,9 @@ export const startNextcloud = async function(branch: string = 'master'): Promise
 			HostConfig: {
 				Binds: [],
 			},
+			Env: [
+				`BRANCH=${branch}`,
+			]
 		})
 		await container.start()
 
@@ -140,7 +143,7 @@ export const applyChangesToNextcloud = async function() {
 		'./ocs',
 	]
 
-	// Tar-streaming the above folder sinto the container
+	// Tar-streaming the above folders into the container
 	const serverTar = tar.c({ gzip: false }, folderPaths)
 	await container.putArchive(serverTar, {
 		path: htmlPath,
