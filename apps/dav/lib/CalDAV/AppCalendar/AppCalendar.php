@@ -25,6 +25,16 @@ class AppCalendar extends ExternalCalendar {
 		$this->calendar = $calendar;
 	}
 
+	/**
+	 * Return permissions supported by the backend calendar
+	 * @return int Permissions based on \OCP\Constants
+	 */
+	public function getPermissions(): int {
+		// Make sure to only promote write support if the backend implement the correct interface
+		if ($this->calendar instanceof ICreateFromString) return $this->calendar->getPermissions();
+		return Constants::PERMISSION_READ;
+	}
+
 	public function getOwner(): ?string {
 		return $this->principal;
 	}
@@ -46,8 +56,7 @@ class AppCalendar extends ExternalCalendar {
 				'protected' => true,
 			]
 		];
-		if ($this->calendar instanceof ICreateFromString &&
-			$this->calendar->getPermissions() & Constants::PERMISSION_CREATE) {
+		if ($this->getPermissions() & Constants::PERMISSION_CREATE) {
 			$acl[] = [
 				'privilege' => '{DAV:}write',
 				'principal' => $this->getOwner(),
@@ -72,7 +81,7 @@ class AppCalendar extends ExternalCalendar {
 	}
 
 	public function delete(): void {
-		// No delete method in OCP\Calendar\ICalendar
+		// No method for deleting a calendar in OCP\Calendar\ICalendar
 		throw new Forbidden('Deleting an entry is not implemented');
 	}
 
@@ -92,7 +101,7 @@ class AppCalendar extends ExternalCalendar {
 		return [
 			'{DAV:}displayname' => $this->calendar->getDisplayName() ?: $this->calendar->getKey(),
 			'{http://apple.com/ns/ical/}calendar-color' => '#' . ($this->calendar->getDisplayColor() ?: '0082c9'),
-			'{' . Plugin::NS_CALDAV . '}supported-calendar-component-set' => new SupportedCalendarComponentSet(['VEVENT', 'VTODO']),
+			'{' . Plugin::NS_CALDAV . '}supported-calendar-component-set' => new SupportedCalendarComponentSet(['VEVENT', 'VJOURNAL', 'VTODO']),
 		];
 	}
 
@@ -136,7 +145,7 @@ class AppCalendar extends ExternalCalendar {
 		$children = $this->calendar->search(substr($name, 0, $pos === false ? null : $pos), ['UID'], [], 1);
 
 		if (count($children) > 0) {
-			return new CalendarObject($this, $children[0]);
+			return new CalendarObject($this, $this->calendar, $children[0]);
 		}
 
 		throw new NotFound('Node not found');
@@ -147,7 +156,7 @@ class AppCalendar extends ExternalCalendar {
 	 */
 	public function getChildren(): array {
 		$children = array_map(function ($calendar) {
-			return new CalendarObject($this, $calendar);
+			return new CalendarObject($this, $this->calendar, $calendar);
 		}, $this->calendar->search(''));
 
 		return $children;

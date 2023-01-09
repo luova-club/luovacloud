@@ -2,6 +2,9 @@
 
 namespace OCA\DAV\CalDAV\AppCalendar;
 
+use OCP\Calendar\ICalendar;
+use OCP\Calendar\ICreateFromString;
+use OCP\Constants;
 use Sabre\CalDAV\ICalendarObject;
 use Sabre\DAV\Exception\Forbidden;
 use Sabre\DAV\Exception\NotFound;
@@ -12,10 +15,12 @@ use Sabre\VObject\Property\ICalendar\DateTime;
 class CalendarObject implements ICalendarObject, IACL {
 	private VCalendar $vobject;
 	private AppCalendar $calendar;
+	private ICalendar $backend;
 
-	public function __construct(AppCalendar $calendar, array $sourceItem) {
+	public function __construct(AppCalendar $calendar, ICalendar $backend, array $sourceItem) {
 		$this->calendar = $calendar;
 		$this->vobject = new VCalendar($sourceItem);
+		$this->backend = $backend;
 	}
 
 	public function getOwner() {
@@ -65,7 +70,18 @@ class CalendarObject implements ICalendarObject, IACL {
 	}
 
 	public function delete(): void {
-		throw new Forbidden('This calendar-object is read-only');
+		if ($this->calendar->getPermissions() & Constants::PERMISSION_DELETE) {
+			/** @var \Sabre\VObject\Component */
+			$vcomponent = $this->vobject->getBaseComponent();
+			$vcomponent->STATUS = 'CANCELLED';
+			$vcomponent->SEQUENCE = isset($vcomponent->SEQUENCE) ? ((int)$vcomponent->SEQUENCE) + 1 : 1;
+			if ($vcomponent->name == 'VEVENT') $vcomponent->METHOD = 'CANCEL';
+			/** @var ICreateFromString */
+			$backend = &$this->backend;
+			$backend->createFromString((string)$vcomponent->UID . '.ics', $vcomponent->serialize());
+		} else {
+			throw new Forbidden('This calendar-object is read-only');
+		}
 	}
 
 	public function getName(): string {
