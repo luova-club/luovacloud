@@ -374,6 +374,8 @@
 
 /*! For license information please see NcRichContenteditable.js.LICENSE.txt */
 
+/*! For license information please see NcSelect.js.LICENSE.txt */
+
 /*! For license information please see NcTextField.js.LICENSE.txt */
 
 /*! For license information please see NcTimezonePicker.js.LICENSE.txt */
